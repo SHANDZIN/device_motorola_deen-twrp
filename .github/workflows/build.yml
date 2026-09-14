@@ -1,0 +1,844 @@
+name: Build TWRP 9 - deen
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build TWRP 9 for deen
+    runs-on: ubuntu-24.04
+
+    env:
+      SOURCE_DIR: ${{ github.workspace }}/twrp9
+      DEVICE: deen
+      DEVICE_NAME: Motorola One
+      ALLOW_MISSING_DEPENDENCIES: "true"
+      DEBIAN_FRONTEND: noninteractive
+
+    steps:
+      # ============================================================
+      # Free disk space
+      # ============================================================
+
+      - name: Free maximum disk space
+        shell: bash
+        run: |
+          echo "========================================"
+          echo "Disk usage before cleanup"
+          echo "========================================"
+          df -h
+
+          sudo rm -rf /usr/local/lib/android || true
+          sudo rm -rf "${ANDROID_HOME:-}" || true
+          sudo rm -rf "${ANDROID_SDK_ROOT:-}" || true
+
+          sudo rm -rf /usr/share/dotnet || true
+          sudo rm -rf /opt/ghc || true
+          sudo rm -rf /usr/local/.ghcup || true
+          sudo rm -rf /usr/local/share/boost || true
+          sudo rm -rf /usr/share/swift || true
+          sudo rm -rf /usr/local/swift || true
+          sudo rm -rf /opt/hostedtoolcache/CodeQL || true
+          sudo rm -rf /usr/local/share/powershell || true
+          sudo rm -rf /opt/az || true
+          sudo rm -rf /usr/lib/google-cloud-sdk || true
+          sudo rm -rf /opt/microsoft || true
+          sudo rm -rf /usr/local/share/chromium || true
+
+          sudo systemctl stop docker.service docker.socket 2>/dev/null || true
+
+          sudo docker system prune \
+            --all \
+            --force \
+            --volumes \
+            2>/dev/null || true
+
+          sudo rm -rf /var/lib/docker || true
+          sudo rm -rf /var/lib/containerd || true
+
+          sudo apt-get clean || true
+          sudo rm -rf /var/cache/apt/* || true
+          sudo rm -rf /tmp/* || true
+          sudo rm -rf /var/tmp/* || true
+
+          echo
+          echo "========================================"
+          echo "Disk usage after cleanup"
+          echo "========================================"
+          df -h
+
+      # ============================================================
+      # Dependencies
+      # ============================================================
+
+      - name: Install build dependencies
+        shell: bash
+        run: |
+          sudo apt-get update
+
+          sudo apt-get install -y \
+            bc \
+            bison \
+            build-essential \
+            curl \
+            flex \
+            g++-multilib \
+            gcc-multilib \
+            git \
+            git-lfs \
+            gnupg \
+            gperf \
+            jq \
+            lib32ncurses-dev \
+            lib32readline-dev \
+            lib32z1-dev \
+            libc6-dev-i386 \
+            libgl1-mesa-dev \
+            liblz4-tool \
+            libncurses-dev \
+            libsdl1.2-dev \
+            libssl-dev \
+            libxml2 \
+            libxml2-utils \
+            lzop \
+            pngcrush \
+            rsync \
+            schedtool \
+            squashfs-tools \
+            unzip \
+            x11proto-core-dev \
+            xsltproc \
+            zip \
+            zlib1g-dev
+
+          sudo apt-get clean
+          sudo rm -rf /var/lib/apt/lists/*
+
+      - name: Install Java 8
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "8"
+
+      # ============================================================
+      # repo
+      # ============================================================
+
+      - name: Install repo
+        shell: bash
+        run: |
+          mkdir -p "$HOME/bin"
+
+          curl -L \
+            https://storage.googleapis.com/git-repo-downloads/repo \
+            -o "$HOME/bin/repo"
+
+          chmod +x "$HOME/bin/repo"
+
+          echo "$HOME/bin" >> "$GITHUB_PATH"
+
+      - name: Configure Git
+        shell: bash
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          git config --global color.ui false
+
+      # ============================================================
+      # TWRP source
+      # ============================================================
+
+      - name: Initialize TWRP 9 source
+        shell: bash
+        run: |
+          mkdir -p "$SOURCE_DIR"
+          cd "$SOURCE_DIR"
+
+          "$HOME/bin/repo" init \
+            --depth=1 \
+            -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_omni.git \
+            -b twrp-9.0
+
+      - name: Sync TWRP source
+        shell: bash
+        run: |
+          cd "$SOURCE_DIR"
+
+          "$HOME/bin/repo" sync \
+            -c \
+            --force-sync \
+            --optimized-fetch \
+            --prune \
+            --no-clone-bundle \
+            --no-tags \
+            -j4
+
+      - name: Check source disk usage
+        shell: bash
+        run: |
+          echo "========================================"
+          echo "Disk after repo sync"
+          echo "========================================"
+
+          df -h
+
+          echo
+          echo "Total source size:"
+          du -sh "$SOURCE_DIR"
+
+          echo
+          echo "Largest source directories:"
+          du -xhd1 "$SOURCE_DIR" 2>/dev/null | sort -h | tail -30
+
+      # ============================================================
+      # Device trees
+      # ============================================================
+
+      - name: Clone deen device tree
+        shell: bash
+        run: |
+          cd "$SOURCE_DIR"
+
+          rm -rf device/motorola/deen
+
+          git clone \
+            --depth=1 \
+            --single-branch \
+            -b android-9.0 \
+            https://github.com/Vhmit/device_motorola_deen-twrp.git \
+            device/motorola/deen
+
+          echo
+          echo "deen device tree:"
+          git -C device/motorola/deen log -1 --oneline
+
+      - name: Clone Qualcomm common tree
+        shell: bash
+        run: |
+          cd "$SOURCE_DIR"
+
+          rm -rf device/qcom/common
+
+          git clone \
+            --depth=1 \
+            --single-branch \
+            -b android-9.0 \
+            https://github.com/TeamWin/android_device_qcom_common.git \
+            device/qcom/common
+
+          echo
+          echo "Qualcomm common tree:"
+          git -C device/qcom/common log -1 --oneline
+
+      - name: Clone Qualcomm commonsys
+        shell: bash
+        run: |
+          cd "$SOURCE_DIR"
+
+          rm -rf vendor/qcom/opensource/commonsys
+
+          git clone \
+            --depth=1 \
+            --single-branch \
+            -b android-9.0 \
+            https://github.com/TeamWin/android_vendor_qcom_opensource_commonsys.git \
+            vendor/qcom/opensource/commonsys
+
+          echo
+          echo "Qualcomm commonsys:"
+          git -C vendor/qcom/opensource/commonsys log -1 --oneline
+
+      # ============================================================
+      # Python compatibility
+      # ============================================================
+
+      - name: Configure Python compatibility
+        shell: bash
+        run: |
+          cd "$SOURCE_DIR"
+
+          PYTHON2="$SOURCE_DIR/prebuilts/python/linux-x86/2.7.5/bin/python2"
+          PYTHON27="$SOURCE_DIR/prebuilts/python/linux-x86/2.7.5/bin/python2.7"
+
+          if [ ! -x "$PYTHON2" ]; then
+            echo "Python 2 prebuilt not found:"
+            echo "$PYTHON2"
+            exit 1
+          fi
+
+          if [ ! -x "$PYTHON27" ]; then
+            echo "Python 2.7 prebuilt not found:"
+            echo "$PYTHON27"
+            exit 1
+          fi
+
+          sudo ln -sf "$PYTHON2" /usr/bin/python
+
+          mkdir -p "$HOME/twrp9-host-bin"
+
+          cat > "$HOME/twrp9-host-bin/python" <<EOF
+          #!/bin/bash
+
+          case "\$1" in
+              *generate_operator_out*|*build_sepolicy*)
+                  exec /usr/bin/python3 "\$@"
+                  ;;
+              *)
+                  exec "$PYTHON2" "\$@"
+                  ;;
+          esac
+          EOF
+
+          chmod +x "$HOME/twrp9-host-bin/python"
+
+          ln -sf \
+            "$PYTHON27" \
+            "$HOME/twrp9-host-bin/python2.7"
+
+          echo "$HOME/twrp9-host-bin" >> "$GITHUB_PATH"
+
+          echo
+          echo "Python configuration:"
+          /usr/bin/python --version
+          "$HOME/twrp9-host-bin/python" --version
+          "$HOME/twrp9-host-bin/python2.7" --version
+          python3 --version
+
+      # ============================================================
+      # Old Clang runtime
+      # ============================================================
+
+      - name: Configure old Clang runtime libraries
+        shell: bash
+        run: |
+          cd "$SOURCE_DIR"
+
+          OLD_SYSROOT="$SOURCE_DIR/prebuilts/gcc/linux-x86/host/x86_64-linux-glibc2.15-4.8/sysroot/usr/lib"
+          HOST_LIBS="$HOME/twrp9-host-libs"
+
+          mkdir -p "$HOST_LIBS"
+
+          if [ ! -f "$OLD_SYSROOT/libtinfo.so.5.9" ]; then
+            echo "libtinfo.so.5.9 not found"
+            exit 1
+          fi
+
+          if [ ! -f "$OLD_SYSROOT/libncurses.so.5.9" ]; then
+            echo "libncurses.so.5.9 not found"
+            exit 1
+          fi
+
+          ln -sf \
+            "$OLD_SYSROOT/libtinfo.so.5.9" \
+            "$HOST_LIBS/libtinfo.so.5"
+
+          ln -sf \
+            "$OLD_SYSROOT/libncurses.so.5.9" \
+            "$HOST_LIBS/libncurses.so.5"
+
+          echo "LD_LIBRARY_PATH=$HOST_LIBS" >> "$GITHUB_ENV"
+
+      # ============================================================
+      # Telegram - build started
+      # ============================================================
+
+      - name: Notify build started
+        shell: bash
+        run: |
+          MESSAGE="🚀 *TWRP 9 build started!*
+          📱 *Device:* \`${{ env.DEVICE_NAME }} (${{ env.DEVICE }})\`
+          📦 *Repo:* \`${{ github.repository }}\`
+          🌿 *Branch:* \`${{ github.ref_name }}\`
+          ⏳ *Compilation in progress...*"
+
+          curl -s -X POST \
+            "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            -d "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
+            -d "parse_mode=markdown" \
+            -d "text=$MESSAGE" \
+            -d "reply_markup={\"inline_keyboard\":[[{\"text\":\"🔍 View real-time log\",\"url\":\"https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}]]}" \
+            || true
+
+      # ============================================================
+      # Build
+      # ============================================================
+
+      - name: Build bootimage
+        id: build
+        shell: bash
+        run: |
+          cd "$SOURCE_DIR"
+
+          mkdir -p "$SOURCE_DIR/logs"
+          LOG_FILE="$SOURCE_DIR/logs/build_output.log"
+
+          echo "========================================"
+          echo "Disk before compilation"
+          echo "========================================"
+
+          df -h
+
+          echo
+          echo "Source size:"
+          du -sh "$SOURCE_DIR"
+
+          echo
+          echo "OUT size:"
+          du -sh "$SOURCE_DIR/out" 2>/dev/null || true
+
+          echo
+          echo "========================================"
+          echo "Starting compilation timer"
+          echo "========================================"
+
+          BUILD_START="$(date +%s)"
+          echo "BUILD_START=$BUILD_START" >> "$GITHUB_ENV"
+
+          set -o pipefail
+
+          {
+            export PATH="$HOME/twrp9-host-bin:$PATH"
+            export LD_LIBRARY_PATH="$HOME/twrp9-host-libs"
+            export ALLOW_MISSING_DEPENDENCIES=true
+
+            hash -r
+
+            build_twrp() {
+              echo
+              echo "========================================"
+              echo "Environment"
+              echo "========================================"
+
+              echo "Python:"
+              type -a python || true
+              python --version
+              /usr/bin/python --version
+
+              echo
+              echo "Java:"
+              java -version
+
+              echo
+              echo "========================================"
+              echo "envsetup"
+              echo "========================================"
+
+              . build/envsetup.sh || return $?
+
+              echo
+              echo "========================================"
+              echo "lunch omni_deen-eng"
+              echo "========================================"
+
+              lunch omni_deen-eng || return $?
+
+              echo
+              echo "========================================"
+              echo "mka bootimage"
+              echo "========================================"
+
+              mka bootimage || return $?
+
+              return 0
+            }
+
+            set +e
+
+            build_twrp
+            BUILD_STATUS=$?
+
+            set -e
+
+            BUILD_END="$(date +%s)"
+
+            echo "BUILD_END=$BUILD_END" >> "$GITHUB_ENV"
+
+            BUILD_SECONDS=$((BUILD_END - BUILD_START))
+
+            echo
+            echo "========================================"
+            echo "Compilation finished"
+            echo "========================================"
+            echo "Exit status: $BUILD_STATUS"
+            echo "Elapsed seconds: $BUILD_SECONDS"
+
+            exit "$BUILD_STATUS"
+
+          } 2>&1 | tee "$LOG_FILE"
+
+      # ============================================================
+      # Failure log
+      # ============================================================
+
+      - name: Upload failure log to Rustbin
+        if: failure() && steps.build.outcome == 'failure'
+        shell: bash
+        run: |
+          LOG_FILE="$SOURCE_DIR/logs/build_output.log"
+
+          mkdir -p "$SOURCE_DIR/logs"
+
+          if [ ! -s "$LOG_FILE" ]; then
+            LOG_FILE="$SOURCE_DIR/logs/failure.log"
+
+            {
+              echo "TWRP 9 build failed."
+              echo
+              echo "Device: deen"
+              echo "Repository: ${{ github.repository }}"
+              echo "Branch: ${{ github.ref_name }}"
+              echo "Run ID: ${{ github.run_id }}"
+              echo "Run attempt: ${{ github.run_attempt }}"
+              echo "Date: $(date)"
+              echo
+              echo "Disk usage:"
+              df -h
+            } > "$LOG_FILE"
+          fi
+
+          echo "Uploading failure log to Rustbin..."
+
+          RESPONSE="$(
+            curl -s \
+              -F "content=@$LOG_FILE" \
+              https://bin.cyberknight777.dev \
+              || true
+          )"
+
+          RESPONSE="$(echo "$RESPONSE" | tr -d '\r\n')"
+
+          if [[ "$RESPONSE" == *"bin.cyberknight777.dev"* ]]; then
+            echo "ERROR_LOG_URL=$RESPONSE" >> "$GITHUB_ENV"
+
+            echo
+            echo "Rustbin Log:"
+            echo "$RESPONSE"
+
+            {
+              echo "## ❌ TWRP build failed"
+              echo
+              echo "### Rustbin"
+              echo
+              echo "$RESPONSE"
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            FALLBACK_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+            echo "Rustbin upload failed."
+            echo "Response: $RESPONSE"
+
+            echo "ERROR_LOG_URL=$FALLBACK_URL" >> "$GITHUB_ENV"
+          fi
+
+      # ============================================================
+      # Failure notification
+      # ============================================================
+
+      - name: Send failure notification
+        if: failure()
+        shell: bash
+        run: |
+          if [ -n "${BUILD_START:-}" ]; then
+            if [ -n "${BUILD_END:-}" ]; then
+              END_TIME="$BUILD_END"
+            else
+              END_TIME="$(date +%s)"
+            fi
+
+            BUILD_SECONDS=$((END_TIME - BUILD_START))
+
+            HOURS=$((BUILD_SECONDS / 3600))
+            MINUTES=$(((BUILD_SECONDS % 3600) / 60))
+            SECONDS=$((BUILD_SECONDS % 60))
+
+            if [ "$HOURS" -gt 0 ]; then
+              BUILD_DURATION="${HOURS}h ${MINUTES}m ${SECONDS}s"
+            elif [ "$MINUTES" -gt 0 ]; then
+              BUILD_DURATION="${MINUTES}m ${SECONDS}s"
+            else
+              BUILD_DURATION="${SECONDS}s"
+            fi
+          else
+            BUILD_DURATION="unknown"
+          fi
+
+          ERROR_URL="${ERROR_LOG_URL:-https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}}"
+
+          MESSAGE="❌ *TWRP 9 build failed!*
+          📱 *Device:* \`${{ env.DEVICE_NAME }} (${{ env.DEVICE }})\`
+          📦 *Repo:* \`${{ github.repository }}\`
+          🌿 *Branch:* \`${{ github.ref_name }}\`
+          ⏱️ *Build time:* \`${BUILD_DURATION}\`
+          🆔 *Run ID:* \`${{ github.run_id }}\`"
+
+          curl -s -X POST \
+            "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            -d "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
+            -d "parse_mode=markdown" \
+            -d "text=$MESSAGE" \
+            -d "reply_markup={\"inline_keyboard\":[[{\"text\":\"📂 View Error Log\",\"url\":\"$ERROR_URL\"}]]}" \
+            || true
+
+      # ============================================================
+      # Prepare boot.img
+      # ============================================================
+
+      - name: Prepare boot image
+        if: success()
+        shell: bash
+        run: |
+          cd "$SOURCE_DIR"
+
+          BUILD_SECONDS=$((BUILD_END - BUILD_START))
+
+          HOURS=$((BUILD_SECONDS / 3600))
+          MINUTES=$(((BUILD_SECONDS % 3600) / 60))
+          SECONDS=$((BUILD_SECONDS % 60))
+
+          if [ "$HOURS" -gt 0 ]; then
+            BUILD_DURATION="${HOURS}h ${MINUTES}m ${SECONDS}s"
+          elif [ "$MINUTES" -gt 0 ]; then
+            BUILD_DURATION="${MINUTES}m ${SECONDS}s"
+          else
+            BUILD_DURATION="${SECONDS}s"
+          fi
+
+          echo "BUILD_DURATION=$BUILD_DURATION" >> "$GITHUB_ENV"
+
+          mkdir -p "$SOURCE_DIR/release"
+
+          BOOT_IMAGE="$SOURCE_DIR/out/target/product/deen/boot.img"
+          RELEASE_IMAGE="$SOURCE_DIR/release/twrp-deen-3.7.0_9.0.img"
+
+          if [ ! -f "$BOOT_IMAGE" ]; then
+            echo "boot.img not found:"
+            echo "$BOOT_IMAGE"
+            exit 1
+          fi
+
+          cp \
+            "$BOOT_IMAGE" \
+            "$RELEASE_IMAGE"
+
+          echo "BOOT_IMAGE=$RELEASE_IMAGE" >> "$GITHUB_ENV"
+
+          echo
+          echo "========================================"
+          echo "Boot image prepared"
+          echo "========================================"
+          echo "Build duration: $BUILD_DURATION"
+
+          echo
+          echo "File:"
+          ls -lh "$RELEASE_IMAGE"
+
+          echo
+          echo "SHA256:"
+          sha256sum "$RELEASE_IMAGE"
+
+      # ============================================================
+      # GoFile
+      #
+      # GoFile failure DOES NOT fail the build.
+      # ============================================================
+
+      - name: Upload boot image to GoFile
+        if: success()
+        shell: bash
+        run: |
+          FILE_PATH="$BOOT_IMAGE"
+          FILE_NAME="${FILE_PATH##*/}"
+
+          echo "========================================"
+          echo "Upload boot image to GoFile"
+          echo "========================================"
+          echo "File: $FILE_NAME"
+          echo
+
+          RESPONSE="$(
+            curl \
+              --connect-timeout 20 \
+              --max-time 300 \
+              --retry 2 \
+              --retry-delay 5 \
+              -sS \
+              -F "name=$FILE_NAME" \
+              -F "file=@$FILE_PATH" \
+              "https://store1.gofile.io/contents/uploadfile" \
+              2>/dev/null \
+              || true
+          )"
+
+          if [ -n "$RESPONSE" ]; then
+            UPLOAD_STATUS="$(
+              printf '%s' "$RESPONSE" |
+                jq -r '.status // empty' \
+                2>/dev/null \
+                || true
+            )"
+
+            DOWNLOAD_URL="$(
+              printf '%s' "$RESPONSE" |
+                jq -r '.data.downloadPage // empty' \
+                2>/dev/null \
+                || true
+            )"
+          else
+            UPLOAD_STATUS=""
+            DOWNLOAD_URL=""
+          fi
+
+          if [ "$UPLOAD_STATUS" = "ok" ] && [ -n "$DOWNLOAD_URL" ]; then
+            echo "DOWNLOAD_URL=$DOWNLOAD_URL" >> "$GITHUB_ENV"
+            echo "UPLOAD_SUCCESS=true" >> "$GITHUB_ENV"
+
+            echo
+            echo "========================================"
+            echo "GoFile upload completed"
+            echo "========================================"
+            echo "$DOWNLOAD_URL"
+
+            {
+              echo "## ✅ TWRP 9 build completed"
+              echo
+              echo "### File"
+              echo
+              echo "\`twrp-deen-3.7.0_9.0.img\`"
+              echo
+              echo "### GoFile"
+              echo
+              echo "$DOWNLOAD_URL"
+              echo
+              echo "### Build time"
+              echo
+              echo "$BUILD_DURATION"
+              echo
+              echo "### SHA256"
+              echo
+              echo '```'
+              sha256sum "$FILE_PATH"
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+
+          else
+            ACTIONS_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+            echo "DOWNLOAD_URL=$ACTIONS_URL" >> "$GITHUB_ENV"
+            echo "UPLOAD_SUCCESS=false" >> "$GITHUB_ENV"
+
+            echo
+            echo "========================================"
+            echo "GoFile upload failed"
+            echo "========================================"
+            echo
+            echo "The boot image was built successfully."
+            echo "The workflow will NOT be marked as failed."
+
+            if [ -n "$RESPONSE" ]; then
+              echo
+              echo "GoFile response:"
+              echo "$RESPONSE"
+            fi
+
+            {
+              echo "## ⚠️ TWRP 9 build completed"
+              echo
+              echo "\`twrp-deen-3.7.0_9.0.img\` was generated successfully,"
+              echo "but the GoFile upload failed."
+              echo
+              echo "### Build time"
+              echo
+              echo "$BUILD_DURATION"
+              echo
+              echo "### SHA256"
+              echo
+              echo '```'
+              sha256sum "$FILE_PATH"
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      # ============================================================
+      # Success notification
+      # ============================================================
+
+      - name: Send success notification
+        if: success()
+        shell: bash
+        run: |
+          if [ "${UPLOAD_SUCCESS:-false}" = "true" ]; then
+
+            MESSAGE="✅ *TWRP 9 build completed!*
+          📱 *Device:* \`${{ env.DEVICE_NAME }} (${{ env.DEVICE }})\`
+          📦 *Repo:* \`${{ github.repository }}\`
+          🌿 *Branch:* \`${{ github.ref_name }}\`
+          ⏱️ *Build time:* \`${{ env.BUILD_DURATION }}\`
+          📄 *File:* \`twrp-deen-3.7.0_9.0.img\`
+          ☁️ *Upload:* \`GoFile\`
+          🆔 *Run ID:* \`${{ github.run_id }}\`"
+
+            BUTTON_TEXT="📥 Download"
+
+          else
+
+            MESSAGE="✅ *TWRP 9 build completed!*
+          📱 *Device:* \`${{ env.DEVICE_NAME }} (${{ env.DEVICE }})\`
+          📦 *Repo:* \`${{ github.repository }}\`
+          🌿 *Branch:* \`${{ github.ref_name }}\`
+          ⏱️ *Build time:* \`${{ env.BUILD_DURATION }}\`
+          📄 *File:* \`twrp-deen-3.7.0_9.0.img\`
+          ⚠️ *Upload:* \`GoFile failed\`
+          🆔 *Run ID:* \`${{ github.run_id }}\`"
+
+            BUTTON_TEXT="🔍 View Actions"
+          fi
+
+          curl -s -X POST \
+            "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            -d "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
+            -d "parse_mode=markdown" \
+            -d "text=$MESSAGE" \
+            -d "reply_markup={\"inline_keyboard\":[[{\"text\":\"$BUTTON_TEXT\",\"url\":\"${DOWNLOAD_URL}\"}]]}" \
+            || true
+
+      # ============================================================
+      # Cancelled notification
+      # ============================================================
+
+      - name: Send cancelled notification
+        if: cancelled()
+        shell: bash
+        run: |
+          if [ -n "${BUILD_START:-}" ]; then
+            END_TIME="$(date +%s)"
+            BUILD_SECONDS=$((END_TIME - BUILD_START))
+
+            HOURS=$((BUILD_SECONDS / 3600))
+            MINUTES=$(((BUILD_SECONDS % 3600) / 60))
+            SECONDS=$((BUILD_SECONDS % 60))
+
+            if [ "$HOURS" -gt 0 ]; then
+              BUILD_DURATION="${HOURS}h ${MINUTES}m ${SECONDS}s"
+            elif [ "$MINUTES" -gt 0 ]; then
+              BUILD_DURATION="${MINUTES}m ${SECONDS}s"
+            else
+              BUILD_DURATION="${SECONDS}s"
+            fi
+          else
+            BUILD_DURATION="unknown"
+          fi
+
+          MESSAGE="⏹️ *TWRP 9 build cancelled!*
+          📱 *Device:* \`${{ env.DEVICE_NAME }} (${{ env.DEVICE }})\`
+          📦 *Repo:* \`${{ github.repository }}\`
+          🌿 *Branch:* \`${{ github.ref_name }}\`
+          ⏱️ *Build time:* \`${BUILD_DURATION}\`
+          🆔 *Run ID:* \`${{ github.run_id }}\`"
+
+          curl -s -X POST \
+            "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            -d "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
+            -d "parse_mode=markdown" \
+            -d "text=$MESSAGE" \
+            -d "reply_markup={\"inline_keyboard\":[[{\"text\":\"🔄 View / Re-run\",\"url\":\"https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}]]}" \
+            || true
