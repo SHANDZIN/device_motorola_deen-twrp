@@ -6,9 +6,9 @@
 #
 
 PRODUCT_MAKEFILES := \
-    $(LOCAL_DIR)/twrp_sanders.mk
+    $(LOCAL_DIR)/twrp_deen.mk
 
 COMMON_LUNCH_CHOICES := \
-    twrp_sanders-user \
-    twrp_sanders-userdebug \
-    twrp_sanders-eng
+    twrp_deen-user \
+    twrp_deen-userdebug \
+    twrp_deen-eng

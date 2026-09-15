@@ -5,7 +5,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-DEVICE_PATH := device/motorola/sanders
+DEVICE_PATH := device/motorola/deen
 
 # For building with minimal manifest
 ALLOW_MISSING_DEPENDENCIES := true
@@ -17,8 +17,13 @@ TARGET_CPU_ABI := arm64-v8a
 TARGET_CPU_ABI2 := 
 TARGET_CPU_VARIANT := generic
 TARGET_CPU_VARIANT_RUNTIME := cortex-a53
+
+# A/B
+BOARD_USES_RECOVERY_AS_BOOT := true
+AB_OTA_UPDATER := true
+
 # Assert
-TARGET_OTA_ASSERT_DEVICE := sanders
+TARGET_OTA_ASSERT_DEVICE := deen,deen_sprout
 
 # Bootloader
 TARGET_BOOTLOADER_BOARD_NAME := MSM8953
@@ -28,23 +33,18 @@ TARGET_NO_BOOTLOADER := true
 TARGET_SCREEN_DENSITY := 320
 
 # Kernel
-BOARD_KERNEL_CMDLINE := console=ttyHSL0,115200,n8 androidboot.console=ttyHSL0 androidboot.hardware=qcom user_debug=30 msm_rtb.filter=0x237 ehci-hcd.park=3 androidboot.bootdevice=7824900.sdhci lpm_levels.sleep_disabled=1 earlycon=msm_hsl_uart,0x78B0000 vmalloc=400M androidboot.usbconfigfs=true loop.max_part=7
-BOARD_KERNEL_CMDLINE += androidboot.boot_devices=soc/7824900.sdhci
-BOARD_KERNEL_CMDLINE += androidboot.selinux=permissive
+BOARD_KERNEL_CMDLINE := console=ttyHSL0,115200,n8 androidboot.console=ttyHSL0 androidboot.hardware=qcom user_debug=30 msm_rtb.filter=0x237 ehci-hcd.park=3 androidboot.bootdevice=7824900.sdhci lpm_levels.sleep_disabled=1 earlycon=msm_hsl_uart,0x78B0000 vmalloc=400M androidboot.hab.product=deen androidboot.usbconfigfs=true loop.max_part=7
+BOARD_KERNEL_CMDLINE += androidboot.selinux=permissive androidboot.fastboot=1
 BOARD_KERNEL_PAGESIZE := 2048
 
 BOARD_KERNEL_BASE := 0x80000000
 BOARD_RAMDISK_OFFSET := 0x01000000
 BOARD_KERNEL_TAGS_OFFSET := 0x00000100
 
-# QCDT
-TARGET_PREBUILT_DTB := $(DEVICE_PATH)/prebuilt/dt.img
-BOARD_CUSTOM_MKBOOTIMG := $(DEVICE_PATH)/tools/mkbootimg.py
 BOARD_MKBOOTIMG_ARGS += --ramdisk_offset $(BOARD_RAMDISK_OFFSET)
 BOARD_MKBOOTIMG_ARGS += --tags_offset $(BOARD_KERNEL_TAGS_OFFSET)
-BOARD_MKBOOTIMG_ARGS += --dt $(TARGET_PREBUILT_DTB)
 
-BOARD_KERNEL_IMAGE_NAME := Image.gz
+BOARD_KERNEL_IMAGE_NAME := Image.gz-dtb
 
 # Kernel - prebuilt
 TARGET_FORCE_PREBUILT_KERNEL := true
@@ -52,20 +52,15 @@ TARGET_PREBUILT_KERNEL := $(DEVICE_PATH)/prebuilt/$(BOARD_KERNEL_IMAGE_NAME)
 
 # Partitions
 BOARD_FLASH_BLOCK_SIZE := 131072 # (BOARD_KERNEL_PAGESIZE * 64)
-BOARD_BOOTIMAGE_PARTITION_SIZE := 16777216
-BOARD_RECOVERYIMAGE_PARTITION_SIZE := 21073920
+BOARD_BOOTIMAGE_PARTITION_SIZE := 67108864
+BOARD_SYSTEMIMAGE_PARTITION_SIZE := 2684354560
+BOARD_USERDATAIMAGE_PARTITION_SIZE := 55104748544
+BOARD_VENDORIMAGE_PARTITION_SIZE := 536870912
 
-# Partitions - Dynamic
-BOARD_SUPER_PARTITION_BLOCK_DEVICES := oem system
-BOARD_SUPER_PARTITION_METADATA_DEVICE := system
-BOARD_SUPER_PARTITION_OEM_DEVICE_SIZE := 805306368
-BOARD_SUPER_PARTITION_SYSTEM_DEVICE_SIZE := 4294967296
-BOARD_SUPER_PARTITION_SIZE := $(shell expr $(BOARD_SUPER_PARTITION_OEM_DEVICE_SIZE) + $(BOARD_SUPER_PARTITION_SYSTEM_DEVICE_SIZE) )
-
-BOARD_SUPER_PARTITION_GROUPS := sanders_dynpart_v1
-BOARD_SANDERS_DYNPART_V1_SIZE := $(shell expr $(BOARD_SUPER_PARTITION_SIZE) - 4194304 )
-BOARD_SANDERS_DYNPART_V1_PARTITION_LIST := system system_ext product vendor odm
-
+# Partitions
+BOARD_HAS_REMOVABLE_STORAGE := true
+BOARD_SUPPRESS_SECURE_ERASE := true
+BOARD_BUILD_SYSTEM_ROOT_IMAGE := true
 BOARD_SYSTEMIMAGE_PARTITION_TYPE := ext4
 BOARD_USERDATAIMAGE_FILE_SYSTEM_TYPE := ext4
 BOARD_VENDORIMAGE_FILE_SYSTEM_TYPE := ext4
@@ -90,6 +85,8 @@ PLATFORM_VERSION := 16.1.0
 
 # TWRP Configuration
 TW_THEME := portrait_hdpi
+TW_Y_OFFSET := 74
+TW_H_OFFSET := -74
 TW_EXTRA_LANGUAGES := false
 TARGET_RECOVERY_QCOM_RTC_FIX := true
 TARGET_RECOVERY_PIXEL_FORMAT := RGBX_8888
