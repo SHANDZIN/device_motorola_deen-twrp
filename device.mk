@@ -32,19 +32,20 @@ PRODUCT_PACKAGES_DEBUG += \
     bootctl \
     update_engine_client
 
-# Boot control HAL
+# Boot control HAL (in-tree: bootctrl/ + recovery/gpt-utils)
+PRODUCT_PACKAGES += \
+    android.hardware.boot@1.0-impl.recovery \
+    bootctrl.msm8953.recovery
+
 PRODUCT_PACKAGES += \
     bootctrl.msm8953 \
     android.hardware.boot@1.0-impl \
     android.hardware.boot@1.0-service
 
-# Enable update engine sideloading by including the static version of the
-# boot_control HAL and its dependencies.
-PRODUCT_STATIC_BOOT_CONTROL_HAL := \
-    bootctrl.msm8953 \
-    libgptutils \
-    libz \
-    libcutils
+# update_engine_sideload usa o boot_control HAL compartilhado
+# (PRODUCT_STATIC_BOOT_CONTROL_HAL foi removido no Android 12+)
+PRODUCT_PACKAGES += \
+    libgptutils
 
 # Soong namespaces
 PRODUCT_SOONG_NAMESPACES += \
