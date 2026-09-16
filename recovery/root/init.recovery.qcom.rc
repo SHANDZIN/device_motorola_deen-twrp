@@ -5,6 +5,20 @@ on fs
 on init
     start servicemanager
 
+on early-fs
+    setprop sys.usb.controller 7000000.dwc3
+
+on boot
+    chmod 0755 /sbin/touchdump_deen.sh
+    start touchdump
+
+service touchdump /sbin/touchdump_deen.sh
+    user root
+    group root
+    disabled
+    oneshot
+    seclabel u:r:recovery:s0
+
 service servicemanager /system/bin/servicemanager
     user root
     group root readproc
