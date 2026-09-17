@@ -100,10 +100,10 @@ TW_USE_LEGACY_BATTERY_SERVICES := true
 TW_CUSTOM_CPU_TEMP_PATH := "/sys/devices/virtual/thermal/thermal_zone20/temp"
 TW_EXCLUDE_TWRPAPP := true
 TW_EXCLUDE_APEX := true
-# MTP via ffs quebrado (twmtp nao abre /dev/usb-ffs/mtp/ep0) e a funcao
-# ffs.mtp sem descriptors derruba o bind do gadget inteiro (-19),
-# matando o adb junto. Sem MTP ate o suporte ffs no twmtp.
-TW_EXCLUDE_MTP := true
+# MTP via ffs (twmtp escreve os descriptors em /dev/usb-ffs/mtp/ep0).
+# O bind da funcao mtp no gadget espera sys.usb.ffs.mtp.ready=1
+# (ver init.recovery.usb.rc) para nao derrubar o gadget com -19.
+TW_EXCLUDE_MTP := false
 TW_EXCLUDE_PYTHON := true
 TW_EXCLUDE_NANO := true
 TW_EXCLUDE_BASH := true
