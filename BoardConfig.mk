@@ -78,6 +78,7 @@ BOARD_RAMDISK_USE_XZ := true
 # Recovery
 TARGET_USERIMAGES_USE_EXT4 := true
 TARGET_USERIMAGES_USE_F2FS := true
+TW_INCLUDE_FUSE_EXFAT := true
 
 # Hack: prevent anti rollback
 PLATFORM_SECURITY_PATCH := 2099-12-31
@@ -99,6 +100,10 @@ TW_USE_LEGACY_BATTERY_SERVICES := true
 TW_CUSTOM_CPU_TEMP_PATH := "/sys/devices/virtual/thermal/thermal_zone20/temp"
 TW_EXCLUDE_TWRPAPP := true
 TW_EXCLUDE_APEX := true
+# MTP via ffs quebrado (twmtp nao abre /dev/usb-ffs/mtp/ep0) e a funcao
+# ffs.mtp sem descriptors derruba o bind do gadget inteiro (-19),
+# matando o adb junto. Sem MTP ate o suporte ffs no twmtp.
+TW_EXCLUDE_MTP := true
 TW_EXCLUDE_PYTHON := true
 TW_EXCLUDE_NANO := true
 TW_EXCLUDE_BASH := true
