@@ -266,6 +266,13 @@ unsigned get_number_slots(struct boot_control_module *module)
 	while ((de = readdir(dir_bootdev))) {
 		if (de->d_name[0] == '.')
 			continue;
+		/* Only count the per-slot nodes (boot_a, boot_b). TWRP creates an
+		 * unsuffixed "boot" symlink pointing at the active slot, and
+		 * BOOT_IMG_PTN_NAME is a prefix of it, so a plain prefix match
+		 * reports one extra slot. */
+		if (strlen(de->d_name) !=
+		    strlen(BOOT_IMG_PTN_NAME) + strlen(AB_SLOT_A_SUFFIX))
+			continue;
 		if (!strncmp(de->d_name, BOOT_IMG_PTN_NAME,
 					strlen(BOOT_IMG_PTN_NAME)))
 			slot_count++;
@@ -423,7 +430,7 @@ static int boot_ctl_set_active_slot_for_partitions(vector<string> part_list,
 		if (stat(buf, &st))
 			continue;
 		memset(slotA, 0, sizeof(slotA));
-		memset(slotB, 0, sizeof(slotA));
+		memset(slotB, 0, sizeof(slotB));
 		snprintf(slotA, sizeof(slotA) - 1, "%s%s", prefix.c_str(),
 				AB_SLOT_A_SUFFIX);
 		snprintf(slotB, sizeof(slotB) - 1,"%s%s", prefix.c_str(),
