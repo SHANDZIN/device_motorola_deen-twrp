@@ -1,4 +1,8 @@
-# Route lazy boot-control requests to the legacy GPT HAL used by deen.
+# Register the recovery HAL before the A/B installer mounts the ROM's /vendor.
+# Otherwise lazy startup can load the ROM implementation instead of ours.
+on property:hwservicemanager.ready=true
+    start boot-hal-1-0
+
 service boot-hal-1-0 /system/bin/android.hardware.boot@1.0-service
     interface android.hardware.boot@1.0::IBootControl default
     user root
