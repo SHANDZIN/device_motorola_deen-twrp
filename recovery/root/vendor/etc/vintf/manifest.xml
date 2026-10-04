@@ -30,4 +30,9 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
         <name>android.hardware.vibrator</name>
         <fqname>IVibrator/default</fqname>
     </hal>
+    <hal format="hidl">
+        <name>android.hardware.boot</name>
+        <transport>hwbinder</transport>
+        <fqname>@1.0::IBootControl/default</fqname>
+    </hal>
 </manifest>

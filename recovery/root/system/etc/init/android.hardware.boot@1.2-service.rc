@@ -1,0 +1,8 @@
+# Override TWRP's default mapping: deen provides IBootControl 1.0 only.
+# Do not let this incompatible service claim the 1.0 interface.
+service boot-hal-1-2 /system/bin/android.hardware.boot@1.2-service
+    user root
+    group root
+    setenv LD_LIBRARY_PATH /vendor/lib64:/vendor/lib:/system/lib64:/system/lib:/sbin
+    disabled
+    seclabel u:r:recovery:s0

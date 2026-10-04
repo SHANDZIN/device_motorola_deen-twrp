@@ -1,0 +1,3 @@
+<!-- Replace TWRP's default fragment: deen exposes the legacy boot HAL 1.0.
+     The supported interface is declared in ../manifest.xml. -->
+<manifest version="1.0" type="device"/>

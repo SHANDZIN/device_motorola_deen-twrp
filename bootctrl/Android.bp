@@ -14,13 +14,18 @@
 // limitations under the License.
 //
 
-// Boot control HAL in-tree (msm8953) usando o gpt-utils do recovery.
-// Substitui o PRODUCT_STATIC_BOOT_CONTROL_HAL (removido no Android 12+).
-// O defaults "bootctrl_hal_defaults" vem de hardware/qcom/bootctrl
-// (ver imports no Android.bp da raiz do device).
+// Use the device implementation; bootctrl_hal_defaults selects the external
+// hardware/qcom/bootctrl source instead of boot_control.cpp in this directory.
 
 cc_library {
     name: "bootctrl.msm8953",
-    defaults: ["bootctrl_hal_defaults"],
+    proprietary: true,
+    recovery_available: true,
+    header_libs: ["libhardware_headers", "libsystem_headers"],
+    shared_libs: ["libcutils", "liblog", "libz"],
+    owner: "qti",
+    relative_install_path: "hw",
+    cflags: ["-Wall", "-Werror"],
+    srcs: ["boot_control.cpp"],
     static_libs: ["libgptutils"],
 }

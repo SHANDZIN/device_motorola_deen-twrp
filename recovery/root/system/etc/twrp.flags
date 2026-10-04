@@ -7,9 +7,9 @@
 /efs1                   emmc    /dev/block/bootdevice/by-name/modemst1    flags=backup=1;flashimg=1;display=EFS
 /efs2                   emmc    /dev/block/bootdevice/by-name/modemst2    flags=backup=1;flashimg=1;subpartitionof=/efs1
 /persist                ext4    /dev/block/bootdevice/by-name/persist     flags=backup=1;display="Persist"
-/vendor/firmware_mnt    emmc    /dev/block/bootdevice/by-name/modem       flags=slotselect;display="Firmware";backup=1;flashimg=1
-/vendor/dsp             emmc    /dev/block/bootdevice/by-name/dsp         flags=slotselect;display="dsp";backup=1;flashimg=1
-/vendor/fsg             emmc    /dev/block/bootdevice/by-name/fsg         flags=slotselect;display="fsg";backup=1;flashimg=1
+/firmware               emmc    /dev/block/bootdevice/by-name/modem       flags=slotselect;display="Firmware";backup=1;flashimg=1
+/dsp                    emmc    /dev/block/bootdevice/by-name/dsp         flags=slotselect;display="dsp";backup=1;flashimg=1
+/fsg                    emmc    /dev/block/bootdevice/by-name/fsg         flags=slotselect;display="fsg";backup=1;flashimg=1
 /oem                    ext4    /dev/block/bootdevice/by-name/oem         flags=backup=1;display="Oem";slotselect;wipeingui
 /logo                   emmc    /dev/block/bootdevice/by-name/logo        flags=slotselect;display="Boot logo";backup=1;flashimg=1
 /misc                   emmc    /dev/block/bootdevice/by-name/misc        flags=backup=1;flashimg=1

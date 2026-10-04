@@ -10,3 +10,4 @@
 /dev/block/bootdevice/by-name/userdata      /data            f2fs      rw,discard,nosuid,nodev,noatime,nodiratime,nobarrier,inline_xattr,inline_data wait,check,formattable,encryptable=/dev/block/bootdevice/by-name/metadata
 /dev/block/bootdevice/by-name/oem           /oem             ext4      ro,nosuid,nodev                          wait,slotselect
 /dev/block/bootdevice/by-name/persist       /persist         ext4      noatime,nosuid,nodev,barrier=1           wait
+/dev/block/bootdevice/by-name/misc          /misc            emmc      defaults                               defaults
